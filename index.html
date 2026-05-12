@@ -610,17 +610,17 @@ import { initializeAppCheck, ReCaptchaV3Provider }
                               from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app-check.js";
 
 /* ── Firebase 設定 ───────────────────────── */
-const FB_CFG = {
-  apiKey:            "AIzaSyAnt-ZwVRwF3bx6iWKQivRqODubum8N5Og",
-  authDomain:        "esssimulation-ae1ab.firebaseapp.com",
-  databaseURL:       "https://esssimulation-ae1ab-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "esssimulation-ae1ab",
-  storageBucket:     "esssimulation-ae1ab.firebasestorage.app",
+const firebaseConfig = {
+  apiKey: "AIzaSyAnt-ZwVRwF3bx6iWKQivRqODubum8N5Og",
+  authDomain: "esssimulation-ae1ab.firebaseapp.com",
+  databaseURL: "https://esssimulation-ae1ab-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "esssimulation-ae1ab",
+  storageBucket: "esssimulation-ae1ab.firebasestorage.app",
   messagingSenderId: "238922922366",
-  appId:             "1:238922922366:web:c9a6de1f68c0840c675b2f",
-  measurementId:     "G-V7C0YH7MZR"
+  appId: "1:238922922366:web:c9a6de1f68c0840c675b2f",
+  measurementId: "G-V7C0YH7MZR"
 };
-const app = initializeApp(FB_CFG);
+const app = initializeApp(firebaseConfig);
 const db  = getDatabase(app);
 
 initializeAppCheck(app, {
