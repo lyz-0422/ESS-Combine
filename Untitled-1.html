@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ESS + PV 儲能系統監控</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+<style>
+/* ════════════════════════════════
+   全域 & 佈局
+════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #f4f7fa;
+  --white:   #ffffff;
+  --panel:   #ffffff;
+  --border:  #e2e8f0;
+  --text:    #2c3e50;
+  --muted:   #95a5a6;
+  --accent:  #546e7a;
+  --green:   #2ecc71;
+  --yellow:  #fbc02d;
+  --red:     #e74c3c;
+  --cyan:    #00bcd4;
+  --purple:  #a29bfe;
+  --orange:  #f0883e;
+  --soc:     #ffd93d;
+  --shadow:  0 2px 20px rgba(0,0,0,0.06);
+  --radius:  16px;
+}
+
+body {
+  font-family: 'Noto Sans TC', sans-serif;
+  background: linear-gradient(135deg, #f4f7fa 0%, #e8eef3 100%);
+  min-height: 100vh;
+  font-size: 15px;
+  color: var(--text);
+  position: relative;
+}
+body::before {
+  content: ''; position: fixed; top: -100px; right: -100px;
+  width: 400px; height: 400px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(160,180,200,0.15) 0%, transparent 70%);
+}
+
+.page-wrap { max-width: 1440px; margin: 0 auto; padding: 28px 20px; }
+
+/* ════ 標題列 ════ */
+.header {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); margin-bottom: 20px;
+  padding: 24px 32px; border-left: 4px solid var(--accent);
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 14px;
+}
+.header h1 {
+  font-family: 'Noto Serif TC', serif; font-size: 28px;
+  font-weight: 700; color: var(--text); margin-bottom: 4px;
+}
+.header-sub { font-size: 14px; color: var(--muted); }
+
+.badge-live {
+  display: flex; align-items: center; gap: 8px;
+  background: #f0fff4; border: 1px solid #68d391; border-radius: 10px;
+  padding: 7px 14px; font-size: 14px; color: #276749; font-weight: 500;
+  white-space: nowrap;
+}
+.pulse { width: 9px; height: 9px; border-radius: 50%; background: #48bb78; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+
+/* ════ 異常警報橫幅 ════ */
+#alertBanner {
+  display: none; margin-bottom: 18px;
+  padding: 14px 22px; border-radius: var(--radius);
+  background: #fff5f5; border: 1.5px solid var(--red);
+  box-shadow: 0 0 16px rgba(231,76,60,.15);
+  animation: slideIn .4s ease;
+  align-items: center; gap: 14px;
+}
+#alertBanner.show { display: flex; }
+@keyframes slideIn { from{transform:translateY(-8px);opacity:0} to{transform:translateY(0);opacity:1} }
+.alert-icon { font-size: 22px; flex-shrink: 0; }
+.alert-body { flex: 1; }
+.alert-title { font-weight: 700; color: var(--red); font-size: 15px; margin-bottom: 3px; }
+.alert-desc  { font-size: 13px; color: var(--text); }
+.alert-score { font-family: 'Noto Serif TC',serif; font-size: 26px; font-weight: 700; color: var(--red); }
+
+/* ════ Tab 切換 ════ */
+.tab-bar {
+  display: flex; gap: 8px; margin-bottom: 18px;
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 10px 18px;
+  flex-wrap: wrap;
+}
+.tab-btn {
+  padding: 8px 22px; border: none; border-radius: 10px;
+  background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 15px; font-weight: 500; font-family: 'Noto Sans TC',sans-serif;
+  transition: all .2s ease;
+}
+.tab-btn:hover  { background: #f1f3f5; color: var(--text); }
+.tab-btn.active { background: var(--accent); color: #fff; box-shadow: 0 3px 10px rgba(84,110,122,.35); }
+
+/* ════ 通用面板 ════ */
+.panel {
+  background: var(--white); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 22px 26px;
+  margin-bottom: 18px;
+}
+.panel-title {
+  font-family: 'Noto Serif TC',serif; font-size: 17px; font-weight: 600;
+  color: var(--text); margin-bottom: 16px; padding-bottom: 10px;
+  border-bottom: 2px solid #f1f3f5; display: flex; align-items: center; gap: 8px;
+}
+.panel-title .pill {
+  font-size: 12px; font-family: 'Noto Sans TC',sans-serif; font-weight: 400;
+  background: #f1f3f5; color: var(--muted); border-radius: 6px; padding: 2px 9px;
+}
+
+/* ════ KPI 卡片 ════ */
+.kpi-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(5, 1fr);
+}
+.kpi-card {
+  background: #f8fafc; border-radius: 12px; padding: 16px 18px;
+  border-left: 3px solid var(--border); transition: all .25s ease;
+  position: relative; overflow: hidden;
+}
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.kpi-card.c-green  { border-left-color: var(--green);  }
+.kpi-card.c-yellow { border-left-color: var(--yellow); }
+.kpi-card.c-red    { border-left-color: var(--red);    }
+.kpi-card.c-cyan   { border-left-color: var(--cyan);   }
+.kpi-card.c-soc    { border-left-color: var(--soc);    }
+.kpi-card.c-purple { border-left-color: var(--purple); }
+.kpi-card.c-orange { border-left-color: var(--orange); }
+.kpi-card.c-accent { border-left-color: var(--accent); }
+.kpi-card.warn     { background: #fff5f5; border-left-color: var(--red); }
+
+.kpi-label { font-size: 13px; color: var(--muted); margin-bottom: 7px; display: flex; align-items: center; gap: 6px; }
+.kpi-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.kpi-value { font-family: 'Noto Serif TC',serif; font-size: 24px; font-weight: 600; color: var(--text); line-height: 1; }
+.kpi-unit  { font-size: 13px; color: var(--muted); margin-left: 3px; font-family: 'Noto Sans TC',sans-serif; font-weight: 400; }
+.kpi-sub   { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+/* 異常類型標籤 */
+.badge-type {
+  position: absolute; top: 8px; right: 8px;
+  font-size: 11px; font-weight: 600; border-radius: 6px; padding: 2px 8px;
+  background: #e74c3c; color: #fff; white-space: nowrap;
+}
+
+/* ════ 異常機率條 ════ */
+.prob-section { margin-top: 4px; }
+.prob-row { margin-bottom: 10px; }
+.prob-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.prob-head span:last-child { font-weight: 500; color: var(--text); }
+.prob-track { height: 7px; background: #edf2f7; border-radius: 4px; overflow: hidden; }
+.prob-fill  { height: 100%; border-radius: 4px; background: linear-gradient(90deg,#546e7a,#95aac2); transition: width .5s ease; }
+.prob-fill.danger { background: linear-gradient(90deg,#fbc02d,#e74c3c); }
+
+/* ════ 統計摘要 ════ */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px;
+}
+.stat-card {
+  background: var(--white); border-radius: 12px; padding: 18px 20px;
+  box-shadow: var(--shadow); border-top: 3px solid var(--border); transition: all .25s;
+}
+.stat-card:nth-child(1){border-top-color:#8e9eab}
+.stat-card:nth-child(2){border-top-color:#a8b5c0}
+.stat-card:nth-child(3){border-top-color:#c2cbd5}
+.stat-card:nth-child(4){border-top-color:#95aac2}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 22px rgba(0,0,0,.09); }
+.stat-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+.stat-value { font-family: 'Noto Serif TC',serif; font-size: 26px; font-weight: 600; color: var(--text); }
+
+/* ════ 導覽列 ════ */
+.nav-bar {
+  background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 16px 22px; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.granularity-btns { display: flex; gap: 8px; }
+.btn-g {
+  padding: 7px 18px; border: 1.5px solid var(--border); border-radius: 9px;
+  background: var(--white); color: var(--muted); cursor: pointer; font-size: 14px;
+  font-family: 'Noto Sans TC',sans-serif; font-weight: 500; transition: all .2s;
+}
+.btn-g:hover  { background: #f8fafc; border-color: var(--accent); color: var(--text); }
+.btn-g.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 3px 10px rgba(84,110,122,.3); }
+
+.sep { width: 1px; height: 28px; background: var(--border); flex-shrink: 0; }
+
+select {
+  padding: 7px 12px; border-radius: 9px; border: 1.5px solid var(--border);
+  font-size: 14px; background: var(--white); color: var(--text);
+  cursor: pointer; font-family: 'Noto Sans TC',sans-serif;
+  transition: border-color .2s;
+}
+select:hover, select:focus { border-color: var(--accent); outline: none; }
+
+button.btn-outline {
+  padding: 7px 16px; border: 1.5px solid var(--border); border-radius: 9px;
+  background: var(--white); color: var(--muted); cursor: pointer;
+  font-size: 14px; font-family: 'Noto Sans TC',sans-serif;
+  transition: all .2s; font-weight: 500;
+}
+button.btn-outline:hover { border-color: var(--accent); color: var(--text); }
+button.btn-fill {
+  padding: 7px 16px; border: none; border-radius: 9px;
+  background: var(--accent); color: #fff; cursor: pointer;
+  font-size: 14px; font-family: 'Noto Sans TC',sans-serif; font-weight: 500;
+  transition: background .2s;
+}
+button.btn-fill:hover { background: #455a64; }
+
+.progress-wrap { flex: 1; min-width: 180px; }
+.progress-bar-bg { height: 6px; background: #edf2f7; border-radius: 3px; overflow: hidden; }
+.progress-bar-fg { height: 100%; background: linear-gradient(90deg,var(--accent),#95aac2); border-radius: 3px; transition: width .3s; }
+.progress-txt    { font-size: 12px; color: var(--muted); margin-top: 5px; text-align: center; }
+
+/* ════ 圖表容器 ════ */
+.chart-wrap { margin-bottom: 18px; }
+.chart-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #f1f3f5;
+  flex-wrap: wrap; gap: 10px;
+}
+.chart-title { font-family: 'Noto Serif TC',serif; font-size: 17px; font-weight: 600; color: var(--text); }
+.chart-sub   { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.legend-row  { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 13px; color: #5a6c7d; }
+.legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+.no-data { text-align: center; padding: 50px; color: var(--muted); font-size: 15px; }
+
+/* ════ 趨勢浮動卡 ════ */
+#trendFloat {
+  position: fixed; bottom: 28px; right: 28px; z-index: 900;
+  background: var(--white); border-radius: 14px; box-shadow: 0 6px 28px rgba(0,0,0,.12);
+  padding: 16px 22px; min-width: 190px;
+}
+.trend-title { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.trend-val   { font-family: 'Noto Serif TC',serif; font-size: 26px; font-weight: 700; color: var(--text); }
+.trend-chg   { font-size: 14px; margin-top: 6px; }
+.up   { color: #27ae60; } .down { color: var(--red); } .flat { color: var(--muted); }
+
+/* ════ 除錯面板 ════ */
+.debug-panel {
+  background: #f8f9fa; border-radius: 10px; padding: 12px 16px;
+  border-left: 3px solid var(--red); font-family: monospace; font-size: 13px;
+  max-height: 180px; overflow-y: auto; margin-bottom: 16px;
+}
+.debug-title { font-weight: 700; color: var(--red); margin-bottom: 6px; }
+.debug-item  { color: #5a6c7d; padding: 2px 0; }
+
+/* ════ 響應式 ════ */
+@media(max-width:1100px) {
+  .kpi-grid   { grid-template-columns: repeat(3,1fr); }
+  .stats-row  { grid-template-columns: repeat(2,1fr); }
+}
+@media(max-width:768px) {
+  .page-wrap  { padding: 16px 12px; }
+  .kpi-grid   { grid-template-columns: repeat(2,1fr); }
+  .stats-row  { grid-template-columns: repeat(2,1fr); }
+  .nav-bar    { flex-direction: column; align-items: stretch; }
+  #trendFloat { position: relative; bottom:auto; right:auto; margin-bottom:16px; }
+}
+
+/* ════ 動畫 ════ */
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+.fade-up { animation: fadeUp .45s ease both; }
+.delay-1 { animation-delay: .08s; }
+.delay-2 { animation-delay: .16s; }
+.delay-3 { animation-delay: .24s; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ── 標題 ── -->
+  <div class="header fade-up">
+    <div>
+      <h1>ESS + PV 儲能系統監控儀表板</h1>
+      <div class="header-sub" id="lastUpdate">正在連接 Firebase…</div>
+    </div>
+    <div class="badge-live"><span class="pulse"></span><span id="liveStatus">即時同步中</span></div>
+  </div>
+
+  <!-- ── 異常警報橫幅 ── -->
+  <div id="alertBanner">
+    <div class="alert-icon">🚨</div>
+    <div class="alert-body">
+      <div class="alert-title">偵測到異常</div>
+      <div class="alert-desc" id="alertDesc">—</div>
+    </div>
+    <div class="alert-score" id="alertScore">—</div>
+  </div>
+
+  <!-- ── 除錯面板 ── -->
+  <div class="debug-panel fade-up" id="debugPanel">
+    <div class="debug-title">🔍 系統連線資訊</div>
+    <div id="debugLog"></div>
+  </div>
+
+  <!-- ── Tab 切換 ── -->
+  <div class="tab-bar fade-up delay-1">
+    <button class="tab-btn active" onclick="switchTab('realtime',this)">⚡ 即時監測</button>
+    <button class="tab-btn"        onclick="switchTab('history', this)">📊 歷史分析</button>
+    <button class="tab-btn"        onclick="switchTab('diag',    this)">🔬 異常診斷</button>
+  </div>
+
+  <!-- ════════════════════════════════
+       TAB 1：即時監測
+  ════════════════════════════════ -->
+  <div id="tab-realtime">
+
+    <!-- 即時 KPI 卡 -->
+    <div class="panel fade-up delay-1">
+      <div class="panel-title">⚡ 即時設備數值 <span class="pill">每分鐘自動更新</span></div>
+      <div class="kpi-grid" id="rtGrid">
+        <!-- 調節後負載 -->
+        <div class="kpi-card c-green">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--green)"></span>原始負載</div>
+          <div class="kpi-value" id="rt_before">--<span class="kpi-unit">kW</span></div>
+          <div class="kpi-sub"  id="rt_time">—</div>
+        </div>
+        <div class="kpi-card c-yellow">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--yellow)"></span>調節後負載</div>
+          <div class="kpi-value" id="rt_after">--<span class="kpi-unit">kW</span></div>
+          <div class="kpi-sub"  id="rt_overSub">—</div>
+        </div>
+        <div class="kpi-card c-red" id="rtContractCard">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--red)"></span>契約容量</div>
+          <div class="kpi-value" id="rt_contract">--<span class="kpi-unit">kW</span></div>
+          <div class="kpi-sub"  id="rt_overKw">超約 — kW</div>
+        </div>
+        <div class="kpi-card c-cyan">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--cyan)"></span>ESS 功率</div>
+          <div class="kpi-value" id="rt_ess">--<span class="kpi-unit">kW</span></div>
+          <div class="kpi-sub">正值放電 / 負值充電</div>
+        </div>
+        <div class="kpi-card c-soc">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--soc)"></span>SOC</div>
+          <div class="kpi-value" id="rt_soc">--<span class="kpi-unit">%</span></div>
+          <div class="kpi-sub"  id="rt_soh">SOH — %</div>
+        </div>
+        <div class="kpi-card c-orange">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--orange)"></span>PV 實際發電</div>
+          <div class="kpi-value" id="rt_pv">--<span class="kpi-unit">kW</span></div>
+          <div class="kpi-sub"  id="rt_pvEff">效率 — %</div>
+        </div>
+        <div class="kpi-card c-accent">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--accent)"></span>逆變器效率</div>
+          <div class="kpi-value" id="rt_invEff">--</div>
+          <div class="kpi-sub"  id="rt_dcLoss">DC-AC 損耗 — %</div>
+        </div>
+        <div class="kpi-card c-purple">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--purple)"></span>異常分數</div>
+          <div class="kpi-value" id="rt_score">--</div>
+          <div class="kpi-sub"  id="rt_scoreType">類型：—</div>
+        </div>
+        <div class="kpi-card" id="rt_anomalyCard">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--red)"></span>異常狀態</div>
+          <div class="kpi-value" id="rt_anomalyVal">--</div>
+        </div>
+        <div class="kpi-card c-green">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--green)"></span>超約量</div>
+          <div class="kpi-value" id="rt_over">--<span class="kpi-unit">kW</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 即時折線圖（最近60筆）-->
+    <div class="panel chart-wrap fade-up delay-2">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">即時趨勢（最近 60 分鐘）</div>
+          <div class="chart-sub">負載 / ESS / PV / 異常分數</div>
+        </div>
+        <div class="legend-row">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>原始負載</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>調節後</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--cyan)"></span>ESS</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>異常分數</div>
+        </div>
+      </div>
+      <canvas id="rtChart" height="90"></canvas>
+    </div>
+
+  </div><!-- /tab-realtime -->
+
+  <!-- ════════════════════════════════
+       TAB 2：歷史分析
+  ════════════════════════════════ -->
+  <div id="tab-history" style="display:none">
+
+    <!-- 導覽列 -->
+    <div class="nav-bar fade-up">
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:#5a6c7d">📊 粒度</div>
+      <div class="granularity-btns">
+        <button class="btn-g active" onclick="setGran('day',this)">本日</button>
+        <button class="btn-g"        onclick="setGran('week',this)">本週</button>
+        <button class="btn-g"        onclick="setGran('month',this)">本月</button>
+      </div>
+      <div class="sep"></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px;color:var(--muted)">📅 <span id="dateLabel">日期</span></span>
+        <select id="dateSelect"></select>
+      </div>
+      <div id="navGroup" style="display:flex;align-items:center;gap:10px;flex:1">
+        <button class="btn-outline" id="btnPrev">← 上一筆</button>
+        <button class="btn-outline" id="btnNext">下一筆 →</button>
+        <div class="progress-wrap">
+          <div class="progress-bar-bg"><div id="progressBar" class="progress-bar-fg" style="width:0%"></div></div>
+          <div id="progressTxt" class="progress-txt">0 / 0</div>
+        </div>
+      </div>
+      <button class="btn-fill" onclick="resetZoom()">重置視圖</button>
+      <button class="btn-outline" onclick="jumpToday()">跳至今日</button>
+    </div>
+
+    <!-- 統計卡 -->
+    <div class="stats-row fade-up delay-1">
+      <div class="stat-card"><div class="stat-label">平均原始負載</div><div id="sAvgOrig" class="stat-value">--</div></div>
+      <div class="stat-card"><div class="stat-label">尖峰原始負載</div><div id="sMaxOrig" class="stat-value">--</div></div>
+      <div class="stat-card"><div class="stat-label">平均 SOC</div>     <div id="sAvgSOC"  class="stat-value">--</div></div>
+      <div class="stat-card"><div class="stat-label">平均 ESS 功率</div><div id="sAvgESS"  class="stat-value">--</div></div>
+    </div>
+
+    <!-- 逐筆資料卡（日模式） -->
+    <div class="panel fade-up delay-1" id="detailPanel">
+      <div class="panel-title">📌 當前資料點 <span class="pill" id="detailTime">--</span></div>
+      <div class="kpi-grid" id="detailGrid">
+        <div class="kpi-card c-green">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--green)"></span>原始負載</div>
+          <div class="kpi-value" id="d_before">--<span class="kpi-unit">kW</span></div>
+        </div>
+        <div class="kpi-card c-yellow">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--yellow)"></span>調節後負載</div>
+          <div class="kpi-value" id="d_after">--<span class="kpi-unit">kW</span></div>
+        </div>
+        <div class="kpi-card c-red">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--red)"></span>契約容量</div>
+          <div class="kpi-value" id="d_contract">--<span class="kpi-unit">kW</span></div>
+        </div>
+        <div class="kpi-card c-cyan">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--cyan)"></span>ESS 功率</div>
+          <div class="kpi-value" id="d_ess">--<span class="kpi-unit">kW</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--red)"></span>超約量</div>
+          <div class="kpi-value" id="d_over">--<span class="kpi-unit">kW</span></div>
+        </div>
+        <div class="kpi-card c-soc">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--soc)"></span>SOC</div>
+          <div class="kpi-value" id="d_soc">--<span class="kpi-unit">%</span></div>
+        </div>
+        <div class="kpi-card c-purple">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--purple)"></span>SOH</div>
+          <div class="kpi-value" id="d_soh">--<span class="kpi-unit">%</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label"><span class="kpi-dot" style="background:#fd79a8"></span>Cell V Diff</div>
+          <div class="kpi-value" id="d_cellv">--<span class="kpi-unit">V</span></div>
+        </div>
+        <div class="kpi-card c-orange">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--orange)"></span>PV 理論</div>
+          <div class="kpi-value" id="d_pvTheory">--<span class="kpi-unit">kW</span></div>
+        </div>
+        <div class="kpi-card" id="d_anomalyCard">
+          <div class="kpi-label"><span class="kpi-dot" style="background:var(--red)"></span>異常狀態</div>
+          <div class="kpi-value" id="d_anomaly">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 圖表1：用電曲線 -->
+    <div class="panel chart-wrap fade-up delay-2">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title" id="hChart1Title">用電曲線（調度前後 + 契約容量）</div>
+          <div class="chart-sub" id="hChart1Sub">—</div>
+        </div>
+        <div class="legend-row">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>原始負載</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--yellow)"></span>調節後負載</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--red)"></span>契約容量</div>
+        </div>
+      </div>
+      <div id="hC1NoData" class="no-data" style="display:none">📭 無資料</div>
+      <canvas id="hChart1" height="90"></canvas>
+    </div>
+
+    <!-- 圖表2：ESS + SOC -->
+    <div class="panel chart-wrap fade-up delay-2">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">ESS 儲能系統狀態（功率 + SOC）</div>
+          <div class="chart-sub">左軸：ESS 功率 (kW)　右軸：SOC (%)</div>
+        </div>
+        <div class="legend-row">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--cyan)"></span>ESS 功率</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--soc)"></span>SOC</div>
+        </div>
+      </div>
+      <div id="hC2NoData" class="no-data" style="display:none">📭 無資料</div>
+      <canvas id="hChart2" height="90"></canvas>
+    </div>
+
+    <!-- 圖表3：PV + SOH -->
+    <div class="panel chart-wrap fade-up delay-3">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">太陽能發電 + 電池健康（PV + SOH）</div>
+          <div class="chart-sub">左軸：PV 出力 (kW)　右軸：SOH (%)</div>
+        </div>
+        <div class="legend-row">
+          <div class="legend-item"><span class="legend-dot" style="background:var(--orange)"></span>PV 理論</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>PV 實際</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--purple)"></span>SOH</div>
+        </div>
+      </div>
+      <div id="hC3NoData" class="no-data" style="display:none">📭 無資料</div>
+      <canvas id="hChart3" height="90"></canvas>
+    </div>
+
+  </div><!-- /tab-history -->
+
+  <!-- ════════════════════════════════
+       TAB 3：異常診斷
+  ════════════════════════════════ -->
+  <div id="tab-diag" style="display:none">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+
+      <!-- 機率條 -->
+      <div class="panel fade-up">
+        <div class="panel-title">🔬 異常類型診斷機率 <span class="pill">來自最新即時推論</span></div>
+        <div class="prob-section" id="probBars">
+          <!-- 動態生成 -->
+        </div>
+      </div>
+
+      <!-- 推論詳細資訊 -->
+      <div class="panel fade-up delay-1">
+        <div class="panel-title">📋 推論結果詳情</div>
+        <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
+          <div class="kpi-card c-red">
+            <div class="kpi-label">混合異常分數</div>
+            <div class="kpi-value" id="diag_score">--</div>
+          </div>
+          <div class="kpi-card c-accent">
+            <div class="kpi-label">IF 異常分數</div>
+            <div class="kpi-value" id="diag_if">--</div>
+          </div>
+          <div class="kpi-card c-purple">
+            <div class="kpi-label">監督模型機率</div>
+            <div class="kpi-value" id="diag_sup">--</div>
+          </div>
+          <div class="kpi-card" id="diag_typeCard">
+            <div class="kpi-label">診斷類型</div>
+            <div class="kpi-value" id="diag_type" style="font-size:16px">--</div>
+          </div>
+        </div>
+        <div style="margin-top:18px;padding:14px;background:#f8fafc;border-radius:10px;font-size:13px;color:var(--muted);line-height:1.8">
+          <b style="color:var(--text)">類型說明：</b><br>
+          🔋 電芯不一致：cell_v_diff 過高（>0.05V）<br>
+          ⚡ 內部短路：自放電率異常升高（>0.05）<br>
+          📉 SOH 衰退：電池健康度快速下降<br>
+          ☁️ 局部遮蔽：PV 產能下降 &gt;50%<br>
+          🌫️ 面板積塵：PV 產能下降 15～30%<br>
+          🔌 逆變器故障：inverter_eff &lt;0.85
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 歷史異常事件清單 -->
+    <div class="panel fade-up delay-2" style="margin-top:0">
+      <div class="panel-title">📜 歷史異常事件紀錄 <span class="pill" id="eventCount">0 筆</span></div>
+      <div id="eventList" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+        <div class="no-data">尚無事件</div>
+      </div>
+    </div>
+  </div><!-- /tab-diag -->
+
+  <!-- 趨勢浮動卡（歷史頁才顯示） -->
+  <div id="trendFloat" style="display:none">
+    <div class="trend-title">當前調節後負載趨勢</div>
+    <div class="trend-val" id="trendVal">--</div>
+    <div class="trend-chg" id="trendChg"><span class="flat">—</span></div>
+  </div>
+
+</div><!-- /page-wrap -->
+
+<!-- ══════════════════════════════════════════
+     JavaScript
+══════════════════════════════════════════ -->
+<script type="module">
+import { initializeApp }      from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+import { getDatabase, ref, onValue, set }
+                              from "https://www.gstatic.com/firebasejs/10.11.1/firebase-database.js";
+import { initializeAppCheck, ReCaptchaV3Provider }
+                              from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app-check.js";
+
+/* ── Firebase 設定 ───────────────────────── */
+const FB_CFG = {
+  apiKey:            "AIzaSyAnt-ZwVRwF3bx6iWKQivRqODubum8N5Og",
+  authDomain:        "esssimulation-ae1ab.firebaseapp.com",
+  databaseURL:       "https://esssimulation-ae1ab-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "esssimulation-ae1ab",
+  storageBucket:     "esssimulation-ae1ab.firebasestorage.app",
+  messagingSenderId: "238922922366",
+  appId:             "1:238922922366:web:c9a6de1f68c0840c675b2f",
+  measurementId:     "G-V7C0YH7MZR"
+};
+const app = initializeApp(FB_CFG);
+const db  = getDatabase(app);
+
+initializeAppCheck(app, {
+  provider: new ReCaptchaV3Provider('6LcXtcksAAAAAPDSveR2n7NX5JTfwvnlVPyy7Tys'),
+  isTokenAutoRefreshEnabled: true
+});
+
+/* ── 全域狀態 ────────────────────────────── */
+const ANOMALY_TYPES = {
+  normal:             { label:'正常',       color: null },
+  cell_inconsistency: { label:'電芯不一致', color:'#a29bfe' },
+  internal_short:     { label:'內部短路',   color:'#e74c3c' },
+  soh_degradation:    { label:'SOH 衰退',   color:'#fbc02d' },
+  partial_shading:    { label:'局部遮蔽',   color:'#3498db' },
+  soiling_effect:     { label:'面板積塵',   color:'#f0883e' },
+  inverter_fault:     { label:'逆變器故障', color:'#e17055' },
+};
+
+const S = {
+  tab:      'realtime',
+  gran:     'day',
+  simData:  [],      // /ems_data 歷史模擬資料
+  rtBuf:    [],      // 即時趨勢緩衝（最近60筆）
+  filtered: [],      // 篩選後歷史資料
+  agg:      [],      // 聚合資料（週/月）
+  idx:      0,
+  charts:   {},
+  events:   [],      // 異常事件紀錄
+};
+
+Chart.defaults.color       = '#5a6c7d';
+Chart.defaults.borderColor = '#e9ecef';
+Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
+Chart.defaults.font.size   = 14;
+
+const ZOOM = { zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'}, pan:{enabled:true,mode:'x'} };
+
+/* ── 工具函式 ────────────────────────────── */
+function dbg(msg, type='info') {
+  const el   = document.getElementById('debugLog');
+  const col  = type==='ok'?'#27ae60':type==='err'?'#e74c3c':'#5a6c7d';
+  const ts   = new Date().toLocaleTimeString('zh-TW');
+  el.innerHTML += `<div class="debug-item" style="color:${col}">[${ts}] ${msg}</div>`;
+  el.scrollTop  = el.scrollHeight;
+}
+function avg(arr, fn) { return arr.length ? arr.reduce((s,d)=>s+fn(d),0)/arr.length : 0; }
+function todayStr()   { return new Date().toLocaleDateString('sv-SE'); }
+function weekId(d)    {
+  const s=new Date(d.getFullYear(),0,1);
+  const w=Math.ceil(((d-s)/86400000+s.getDay()+1)/7);
+  return `${d.getFullYear()}-W${String(w).padStart(2,'0')}`;
+}
+function destroyChart(k) { if(S.charts[k]){ S.charts[k].destroy(); delete S.charts[k]; } }
+function setKV(id, val)  {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const unit = el.querySelector('.kpi-unit, .rt-unit');
+  el.textContent = val;
+  if (unit) el.appendChild(unit);
+}
+
+/* ── Unity 控制器 ────────────────────────── */
+function unityDate(date) {
+  set(ref(db,'viewerDate'), date)
+    .then(()=>dbg(`📡 Unity ← viewerDate: ${date}`,'ok'))
+    .catch(e=>dbg(`❌ viewerDate: ${e.message}`,'err'));
+}
+function unityTime(time) {
+  set(ref(db,'viewerTime'), time)
+    .then(()=>dbg(`📡 Unity ← viewerTime: ${time}`,'ok'))
+    .catch(e=>dbg(`❌ viewerTime: ${e.message}`,'err'));
+}
+
+/* ══════════════════════════════════════════
+   TAB 切換
+══════════════════════════════════════════ */
+window.switchTab = (name, btn) => {
+  S.tab = name;
+  ['realtime','history','diag'].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t===name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('trendFloat').style.display = name==='history' ? '' : 'none';
+};
+
+/* ══════════════════════════════════════════
+   ① Firebase /ems_realtime → 即時 Tab + 診斷 Tab
+══════════════════════════════════════════ */
+onValue(ref(db, '/ems_realtime'), snap => {
+  const d = snap.val();
+  if (!d) { document.getElementById('liveStatus').textContent='無即時資料'; return; }
+
+  /* 欄位對應：同時相容 Python 新版（英文 key）和舊版（中文 key）*/
+  const before   = d.before_load_kw     ?? d['原始負載_kW']   ?? d.before_load   ?? null;
+  const after    = d.after_load_kw      ?? d['調節後負載_kW'] ?? d.after_load    ?? null;
+  const contract = d.contract_capacity_kw?? d['契約容量_kW']  ?? d.contract_capacity ?? null;
+  const ess      = d.ess_power_kw       ?? d['ESS功率_kW']    ?? d.ess_power     ?? null;
+  const soc      = d.soc_pct            ?? d['SOC_%']         ?? d.soc           ?? null;
+  const soh      = d.soh_pct            ?? d.soh              ?? null;
+  const pvAct    = d.pv_actual_kw       ?? d.pv_actual        ?? null;
+  const pvThe    = d.pv_theory_kw       ?? d.pv_theory        ?? null;
+  const invEff   = d.inverter_eff       ?? null;
+  const pvAc     = d.pv_ac_kw          ?? d.pv_ac            ?? null;
+  const over     = d.over_contract_kw   ?? d.over_contract    ?? null;
+  const score    = d.anomaly_score      ?? null;
+  const ifScore  = d.if_score           ?? null;
+  const supProba = d.sup_proba          ?? null;
+  const isAnom   = d.is_anomaly === 1 || d.is_anomaly === true;
+  const typeName = d.anomaly_type       ?? 'normal';
+  const mcProb   = d.mc_probabilities   ?? {};
+  const ts       = d.timestamp          ?? '';
+
+  /* KPI 卡更新 */
+  setKV('rt_before',   before   != null ? Number(before).toFixed(2)   : '--');
+  setKV('rt_after',    after    != null ? Number(after).toFixed(2)    : '--');
+  setKV('rt_contract', contract != null ? Number(contract).toFixed(0) : '--');
+  setKV('rt_ess',      ess      != null ? Number(ess).toFixed(2)      : '--');
+  setKV('rt_soc',      soc      != null ? Number(soc).toFixed(1)      : '--');
+  setKV('rt_pv',       pvAct    != null ? Number(pvAct).toFixed(2)    : '--');
+  setKV('rt_score',    score    != null ? Number(score).toFixed(3)    : '--');
+  setKV('rt_over',     over     != null ? Number(over).toFixed(2)     : '--');
+
+  if (soh != null) document.getElementById('rt_soh').textContent = `SOH ${Number(soh).toFixed(1)}%`;
+  if (ts)          document.getElementById('rt_time').textContent= `資料時間：${ts}`;
+
+  const pvEff = (pvThe > 0 && pvAct != null) ? (pvAct/pvThe*100) : null;
+  if (pvEff != null) document.getElementById('rt_pvEff').textContent = `效率 ${pvEff.toFixed(1)}%`;
+  if (invEff != null) document.getElementById('rt_invEff').textContent = `${(invEff*100).toFixed(1)}%`;
+
+  const dcLoss = pvAct > 0 && pvAc != null ? ((pvAct-pvAc)/pvAct*100) : null;
+  if (dcLoss != null) document.getElementById('rt_dcLoss').textContent = `DC-AC 損耗 ${dcLoss.toFixed(2)}%`;
+
+  const overKw = after != null && contract != null ? Math.max(0, after-contract) : 0;
+  document.getElementById('rt_overKw').textContent = `超約 ${overKw.toFixed(2)} kW`;
+  document.getElementById('rtContractCard').classList.toggle('warn', overKw > 0);
+
+  document.getElementById('rt_scoreType').textContent = `類型：${ANOMALY_TYPES[typeName]?.label ?? typeName}`;
+
+  /* 異常狀態卡 */
+  const aCard = document.getElementById('rt_anomalyCard');
+  setKV('rt_anomalyVal', isAnom ? '⚠ 異常' : '✅ 正常');
+  aCard.style.borderLeftColor = isAnom ? 'var(--red)' : 'var(--green)';
+  aCard.style.background     = isAnom ? '#fff5f5' : '';
+
+  /* 警報橫幅 */
+  const banner = document.getElementById('alertBanner');
+  if (isAnom) {
+    banner.classList.add('show');
+    document.getElementById('alertDesc').textContent =
+      `類型：${ANOMALY_TYPES[typeName]?.label ?? typeName} ｜ IF=${ifScore?.toFixed(3)??'—'} Sup=${supProba?.toFixed(3)??'—'}`;
+    document.getElementById('alertScore').textContent = score?.toFixed(3) ?? '—';
+  } else {
+    banner.classList.remove('show');
+  }
+
+  /* 診斷 Tab */
+  setKV('diag_score', score   != null ? score.toFixed(3)    : '--');
+  setKV('diag_if',    ifScore != null ? ifScore.toFixed(3)  : '--');
+  setKV('diag_sup',   supProba!= null ? supProba.toFixed(3) : '--');
+  document.getElementById('diag_type').textContent = ANOMALY_TYPES[typeName]?.label ?? typeName;
+
+  /* 機率條 */
+  const pbEl = document.getElementById('probBars');
+  pbEl.innerHTML = '';
+  Object.entries(ANOMALY_TYPES).forEach(([key, meta]) => {
+    const p = mcProb[key] ?? 0;
+    const pct = (p*100).toFixed(2);
+    const danger = p > 0.5 ? ' danger' : '';
+    pbEl.innerHTML += `
+      <div class="prob-row">
+        <div class="prob-head"><span>${meta.label}</span><span>${pct}%</span></div>
+        <div class="prob-track"><div class="prob-fill${danger}" style="width:${p*100}%"></div></div>
+      </div>`;
+  });
+
+  /* 事件紀錄（只記異常） */
+  if (isAnom) {
+    S.events.unshift({ ts, typeName, score: score?.toFixed(3) ?? '—', label: ANOMALY_TYPES[typeName]?.label ?? typeName });
+    if (S.events.length > 50) S.events.pop();
+    renderEventList();
+  }
+
+  /* 即時折線圖 */
+  const timeLabel = ts.slice(11,16) || '--:--';
+  S.rtBuf.push({ t: timeLabel, before, after, ess, score });
+  if (S.rtBuf.length > 60) S.rtBuf.shift();
+  renderRtChart();
+
+  document.getElementById('lastUpdate').textContent =
+    `✅ 最後更新：${new Date().toLocaleString('zh-TW')} ｜ Firebase 即時同步`;
+});
+
+function renderRtChart() {
+  destroyChart('rtC');
+  const labels = S.rtBuf.map(r=>r.t);
+  S.charts.rtC = new Chart(document.getElementById('rtChart'), {
+    type: 'line',
+    data: { labels, datasets: [
+      { label:'原始負載', data:S.rtBuf.map(r=>r.before), borderColor:'#2ecc71', pointRadius:0, borderWidth:1.8, fill:false },
+      { label:'調節後',   data:S.rtBuf.map(r=>r.after),  borderColor:'#fbc02d', pointRadius:0, borderWidth:2.2, fill:false },
+      { label:'ESS',      data:S.rtBuf.map(r=>r.ess),    borderColor:'#00bcd4', pointRadius:0, borderWidth:1.6, fill:false },
+      { label:'異常分數', data:S.rtBuf.map(r=>r.score),  borderColor:'#e74c3c', pointRadius:0, borderWidth:2,   fill:false,
+        borderDash:[5,3], yAxisID:'yR' },
+    ]},
+    options: {
+      responsive:true, maintainAspectRatio:true, animation:{duration:0},
+      interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{display:false}, tooltip:{mode:'index',intersect:false} },
+      scales:{
+        x:  { ticks:{maxTicksLimit:12} },
+        y:  { title:{display:true,text:'功率 (kW)'} },
+        yR: { position:'right', min:0, max:1, title:{display:true,text:'異常分數'}, grid:{drawOnChartArea:false} }
+      }
+    }
+  });
+}
+
+function renderEventList() {
+  const el = document.getElementById('eventList');
+  document.getElementById('eventCount').textContent = `${S.events.length} 筆`;
+  if (!S.events.length) { el.innerHTML='<div class="no-data">尚無事件</div>'; return; }
+  el.innerHTML = S.events.map(ev => {
+    const col = ANOMALY_TYPES[ev.typeName]?.color ?? '#e74c3c';
+    return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;
+      border-radius:10px;background:#f8fafc;border:1px solid var(--border);font-size:13px;
+      animation:fadeUp .3s ease">
+      <span style="padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;
+        background:${col}22;color:${col};white-space:nowrap;flex-shrink:0">ANOMALY</span>
+      <span style="flex:1;color:var(--text)">
+        ${ev.label}｜分數 ${ev.score}
+      </span>
+      <span style="color:var(--muted);font-size:11px;white-space:nowrap">${ev.ts.slice(11,16)}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════
+   ② Firebase /ems_data → 歷史 Tab
+══════════════════════════════════════════ */
+onValue(ref(db, '/ems_data'), snap => {
+  dbg('📡 /ems_data 數據更新');
+  const raw = snap.val();
+  if (!raw) { dbg('❌ /ems_data 無資料，請先執行 Colab 上傳','err'); return; }
+
+  S.simData = [];
+  let cnt = 0;
+  Object.keys(raw).forEach(dk => {
+    const day = raw[dk];
+    if (typeof day !== 'object' || !day) return;
+    Object.keys(day).forEach(tk => {
+      const r = day[tk];
+      if (!r || !r.timestamp) return;
+      cnt++;
+      S.simData.push({
+        ts:                  r.timestamp,
+        before_load:         +r.before_load         || 0,
+        after_load:          +r.after_load          || 0,
+        over_contract:       +r.over_contract       || 0,
+        contract_capacity:   +r.contract_capacity   || 500,
+        ess_power:           +r.ess_power           || 0,
+        soc:                 +r.soc                 || 0,
+        soh:                 +r.soh                 || 100,
+        cell_v_diff:         +r.cell_v_diff         || 0,
+        inverter_eff:        +r.inverter_eff        || 0,
+        pv_theory:           +r.pv_theory           || 0,
+        pv_actual:           +r.pv_actual           || 0,
+        is_anomaly:          +r.is_anomaly          || 0,
+        anomaly_type:        r.anomaly_type         || 'normal',
+      });
+    });
+  });
+
+  S.simData.sort((a,b) => new Date(a.ts)-new Date(b.ts));
+  dbg(`✅ 解析完成：${cnt} 筆，${Object.keys(raw).length} 天`, 'ok');
+  setTimeout(()=>{ const dp=document.getElementById('debugPanel'); if(dp) dp.style.display='none'; }, 4000);
+  initHistoryView();
+});
+
+/* ── 歷史視圖初始化 ── */
+function initHistoryView() {
+  const sel = document.getElementById('dateSelect');
+  const dates = [...new Set(S.simData.map(d => {
+    const day = d.ts.slice(0,10);
+    if (S.gran==='month') return day.slice(0,7);
+    if (S.gran==='week')  return weekId(new Date(day));
+    return day;
+  }))].filter(Boolean).sort();
+  if (!dates.length) return;
+
+  const prev = sel.value;
+  sel.innerHTML = dates.map(d=>`<option value="${d}">${d}</option>`).join('');
+  const today = todayStr();
+  sel.value = dates.includes(prev) ? prev : dates.includes(today) ? today : dates.at(-1) ?? '';
+
+  sel.onchange = () => {
+    if (S.gran==='day') unityDate(sel.value);
+    applyFilter();
+  };
+  document.getElementById('dateLabel').textContent = S.gran==='day'?'日期':S.gran==='week'?'週次':'月份';
+  applyFilter();
+}
+
+function applyFilter() {
+  const v = document.getElementById('dateSelect').value;
+  if (S.gran==='day') {
+    S.filtered = S.simData.filter(d=>d.ts.slice(0,10)===v);
+    S.agg = [];
+    if (S.filtered.length) { unityDate(v); unityTime(S.filtered[0].ts.slice(11,16)); }
+  } else {
+    const rows = S.simData.filter(d=>{
+      const day=d.ts.slice(0,10);
+      return S.gran==='week'?weekId(new Date(day))===v:day.slice(0,7)===v;
+    });
+    S.filtered = rows;
+    S.agg = buildAgg(rows);
+  }
+  S.idx = 0;
+  updateStats();
+  updateHistoryUI();
+  renderHistoryCharts();
+}
+
+function buildAgg(rows) {
+  const map = {};
+  rows.forEach(r => {
+    const k = r.ts.slice(0,10);
+    if (!map[k]) map[k]={n:0,sB:0,mB:0,sA:0,sS:0,sE:0,sH:0,sP:0};
+    const m=map[k]; m.n++;
+    m.sB+=r.before_load; m.mB=Math.max(m.mB,r.before_load);
+    m.sA+=r.after_load;  m.sS+=r.soc; m.sE+=r.ess_power;
+    m.sH+=r.soh;         m.sP+=r.pv_actual;
+  });
+  return Object.keys(map).sort().map(k=>{
+    const m=map[k];
+    return { date:k,
+      avgBefore:(m.sB/m.n).toFixed(2), peakBefore:m.mB.toFixed(2),
+      avgAfter:(m.sA/m.n).toFixed(2),  avgSOC:(m.sS/m.n).toFixed(2),
+      avgESS:(m.sE/m.n).toFixed(2),    avgSOH:(m.sH/m.n).toFixed(2),
+      avgPvA:(m.sP/m.n).toFixed(2)
+    };
+  });
+}
+
+function updateStats() {
+  const isDay=S.gran==='day', src=isDay?S.filtered:S.agg;
+  if (!src.length) return;
+  const aOrig = isDay?avg(src,d=>d.before_load):avg(src,d=>+d.avgBefore);
+  const mOrig = isDay?Math.max(...src.map(d=>d.before_load)):Math.max(...src.map(d=>+d.peakBefore));
+  const aSOC  = isDay?avg(src,d=>d.soc):avg(src,d=>+d.avgSOC);
+  const aESS  = isDay?avg(src,d=>d.ess_power):avg(src,d=>+d.avgESS);
+  document.getElementById('sAvgOrig').textContent = aOrig.toFixed(1)+' kW';
+  document.getElementById('sMaxOrig').textContent = mOrig.toFixed(1)+' kW';
+  document.getElementById('sAvgSOC').textContent  = aSOC.toFixed(1)+' %';
+  document.getElementById('sAvgESS').textContent  = aESS.toFixed(1)+' kW';
+}
+
+function updateHistoryUI() {
+  const isDay = S.gran==='day';
+  document.getElementById('navGroup').style.display    = isDay?'flex':'none';
+  document.getElementById('detailPanel').style.display = isDay?''   :'none';
+  document.getElementById('hChart1Title').textContent  =
+    isDay?'用電曲線（調度前後 + 契約容量）':'每日平均 / 尖峰負載';
+
+  if (isDay && S.filtered.length) { updateDetailCard(); updateTrend(); }
+}
+
+function updateDetailCard() {
+  const d=S.filtered[S.idx];
+  const pct=((S.idx+1)/S.filtered.length*100).toFixed(1);
+  document.getElementById('progressBar').style.width    = pct+'%';
+  document.getElementById('progressTxt').textContent    = `${S.idx+1} / ${S.filtered.length}`;
+  document.getElementById('detailTime').textContent     = d.ts.replace('T',' ').slice(0,16);
+  document.getElementById('hChart1Sub').textContent     = d.ts.slice(0,10)+`　共 ${S.filtered.length} 筆`;
+
+  setKV('d_before',   d.before_load.toFixed(2));
+  setKV('d_after',    d.after_load.toFixed(2));
+  setKV('d_contract', d.contract_capacity+'');
+  setKV('d_ess',      d.ess_power.toFixed(2));
+  setKV('d_over',     d.over_contract.toFixed(2));
+  setKV('d_soc',      d.soc.toFixed(2));
+  setKV('d_soh',      d.soh.toFixed(2));
+  setKV('d_cellv',    d.cell_v_diff.toFixed(4));
+  setKV('d_pvTheory', d.pv_theory.toFixed(2));
+
+  const ac=document.getElementById('d_anomalyCard');
+  setKV('d_anomaly', d.is_anomaly===1?'⚠ 異常':'✅ 正常');
+  ac.style.borderLeftColor = d.is_anomaly===1?'var(--red)':'var(--green)';
+  ac.style.background      = d.is_anomaly===1?'#fff5f5':'';
+  ac.querySelectorAll('.badge-type').forEach(e=>e.remove());
+  if (d.is_anomaly===1) {
+    const b=document.createElement('span');
+    b.className='badge-type';
+    b.textContent=ANOMALY_TYPES[d.anomaly_type]?.label??d.anomaly_type;
+    b.style.background=ANOMALY_TYPES[d.anomaly_type]?.color??'#e74c3c';
+    ac.appendChild(b);
+  }
+}
+
+function updateTrend() {
+  if (S.idx===0){ document.getElementById('trendVal').textContent='--'; return; }
+  const cur=S.filtered[S.idx].after_load, prev=S.filtered[S.idx-1].after_load;
+  const diff=cur-prev, pct=prev?((diff/prev)*100).toFixed(2):0;
+  document.getElementById('trendVal').textContent=cur.toFixed(2)+' kW';
+  const cls=diff>0?'up':diff<0?'down':'flat';
+  const sym=diff>0?'↑':diff<0?'↓':'→';
+  document.getElementById('trendChg').innerHTML=`<span class="${cls}">${sym} ${Math.abs(pct)}%</span>`;
+}
+
+/* ── 上/下一筆 ── */
+document.getElementById('btnPrev').onclick = () => {
+  if (S.idx > 0) { S.idx--; unityTime(S.filtered[S.idx].ts.slice(11,16)); updateDetailCard(); updateTrend(); }
+};
+document.getElementById('btnNext').onclick = () => {
+  if (S.idx < S.filtered.length-1) { S.idx++; unityTime(S.filtered[S.idx].ts.slice(11,16)); updateDetailCard(); updateTrend(); }
+};
+
+/* ── 歷史圖表渲染 ── */
+const ANOMALY_COLORS = {
+  normal:null, cell_inconsistency:'#a29bfe', internal_short:'#e74c3c',
+  soh_degradation:'#fbc02d', partial_shading:'#3498db',
+  soiling_effect:'#f0883e', inverter_fault:'#e17055'
+};
+
+function renderHistoryCharts() {
+  ['hC1','hC2','hC3'].forEach(k=>destroyChart(k));
+  S.gran==='day' ? renderDayCharts() : renderAggCharts();
+}
+
+function renderDayCharts() {
+  const rows=S.filtered;
+  const show=(nid,cid,has)=>{
+    document.getElementById(nid).style.display=has?'none':'block';
+    document.getElementById(cid).style.display=has?'block':'none';
+  };
+  show('hC1NoData','hChart1',!!rows.length);
+  show('hC2NoData','hChart2',!!rows.length);
+  show('hC3NoData','hChart3',!!rows.length);
+  if (!rows.length) return;
+
+  const labels=rows.map(d=>d.ts.slice(11,16));
+  const ptClr =rows.map(d=>d.is_anomaly?(ANOMALY_COLORS[d.anomaly_type]||'#e74c3c'):'transparent');
+  const ptRad =rows.map(d=>d.is_anomaly?5:0);
+  const OPTS  = {
+    responsive:true, maintainAspectRatio:true, animation:{duration:0},
+    interaction:{mode:'index',intersect:false},
+    plugins:{ zoom:ZOOM, legend:{display:false},
+      tooltip:{mode:'index',intersect:false} },
+    onClick:(e,els)=>{ if(els.length){ S.idx=els[0].index; unityTime(rows[S.idx].ts.slice(11,16)); updateDetailCard(); updateTrend(); } }
+  };
+
+  S.charts.hC1 = new Chart(document.getElementById('hChart1'),{type:'line',data:{labels,datasets:[
+    {label:'原始負載',   data:rows.map(d=>d.before_load),       borderColor:'#2ecc71',pointRadius:0,borderWidth:1.8,fill:false},
+    {label:'調節後負載', data:rows.map(d=>d.after_load),        borderColor:'#fbc02d',borderWidth:2.5,fill:false,pointRadius:ptRad,pointBackgroundColor:ptClr,pointBorderColor:ptClr},
+    {label:'契約容量',   data:rows.map(d=>d.contract_capacity), borderColor:'#ff4757',borderDash:[6,4],pointRadius:0,borderWidth:1.5,fill:false},
+  ]},options:{...OPTS,scales:{x:{ticks:{maxTicksLimit:24}},y:{title:{display:true,text:'功率 (kW)'}}}}});
+
+  S.charts.hC2 = new Chart(document.getElementById('hChart2'),{type:'line',data:{labels,datasets:[
+    {label:'ESS功率',yAxisID:'y', data:rows.map(d=>d.ess_power),borderColor:'#00bcd4',pointRadius:0,borderWidth:1.8,fill:false},
+    {label:'SOC',   yAxisID:'y1',data:rows.map(d=>d.soc),      borderColor:'#ffd93d',pointRadius:0,borderWidth:1.8,fill:false},
+  ]},options:{...OPTS,scales:{x:{ticks:{maxTicksLimit:24}},y:{title:{display:true,text:'ESS 功率 (kW)'}},y1:{position:'right',min:0,max:100,title:{display:true,text:'SOC (%)'}}}}});
+
+  S.charts.hC3 = new Chart(document.getElementById('hChart3'),{type:'line',data:{labels,datasets:[
+    {label:'PV理論',yAxisID:'y', data:rows.map(d=>d.pv_theory),borderColor:'#f0883e',borderDash:[5,3],pointRadius:0,borderWidth:1.5,fill:false},
+    {label:'PV實際',yAxisID:'y', data:rows.map(d=>d.pv_actual),borderColor:'#27ae60',pointRadius:0,borderWidth:1.8,fill:false},
+    {label:'SOH',   yAxisID:'y1',data:rows.map(d=>d.soh),      borderColor:'#a29bfe',pointRadius:0,borderWidth:1.8,fill:false},
+  ]},options:{...OPTS,scales:{x:{ticks:{maxTicksLimit:24}},y:{title:{display:true,text:'PV 出力 (kW)'}},y1:{position:'right',min:0,max:100,title:{display:true,text:'SOH (%)'}}}}});
+}
+
+function renderAggCharts() {
+  const labels=S.agg.map(d=>d.date);
+  const OPTS={responsive:true,maintainAspectRatio:true,animation:{duration:0},
+    interaction:{mode:'index',intersect:false},
+    plugins:{zoom:ZOOM,legend:{display:false},tooltip:{mode:'index',intersect:false}}};
+
+  ['hC1NoData','hC2NoData','hC3NoData'].forEach(id=>document.getElementById(id).style.display='none');
+  ['hChart1','hChart2','hChart3'].forEach(id=>document.getElementById(id).style.display='block');
+
+  S.charts.hC1=new Chart(document.getElementById('hChart1'),{type:'bar',data:{labels,datasets:[
+    {label:'平均原始負載',data:S.agg.map(d=>d.avgBefore), backgroundColor:'rgba(46,204,113,.6)',borderColor:'#2ecc71',borderWidth:1},
+    {label:'尖峰原始負載',data:S.agg.map(d=>d.peakBefore),backgroundColor:'rgba(255,71,87,.5)', borderColor:'#ff4757',borderWidth:1},
+  ]},options:{...OPTS,scales:{x:{},y:{title:{display:true,text:'kW'}}}}});
+
+  S.charts.hC2=new Chart(document.getElementById('hChart2'),{type:'bar',data:{labels,datasets:[
+    {label:'平均ESS',yAxisID:'y', data:S.agg.map(d=>d.avgESS),backgroundColor:'rgba(0,188,212,.6)', borderColor:'#00bcd4',borderWidth:1},
+    {label:'平均SOC',yAxisID:'y1',data:S.agg.map(d=>d.avgSOC),backgroundColor:'rgba(255,217,61,.6)',borderColor:'#ffd93d',borderWidth:1},
+  ]},options:{...OPTS,scales:{x:{},y:{title:{display:true,text:'ESS kW'}},y1:{position:'right',min:0,max:100,title:{display:true,text:'SOC %'}}}}});
+
+  S.charts.hC3=new Chart(document.getElementById('hChart3'),{type:'bar',data:{labels,datasets:[
+    {label:'平均PV實際',yAxisID:'y', data:S.agg.map(d=>d.avgPvA),backgroundColor:'rgba(39,174,96,.6)', borderColor:'#27ae60',borderWidth:1},
+    {label:'平均SOH',   yAxisID:'y1',data:S.agg.map(d=>d.avgSOH),backgroundColor:'rgba(162,155,254,.6)',borderColor:'#a29bfe',borderWidth:1},
+  ]},options:{...OPTS,scales:{x:{},y:{title:{display:true,text:'PV kW'}},y1:{position:'right',min:0,max:100,title:{display:true,text:'SOH %'}}}}});
+}
+
+/* ── 粒度切換 ── */
+window.setGran = (gran, btn) => {
+  S.gran = gran;
+  document.querySelectorAll('.btn-g').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  initHistoryView();
+};
+
+/* ── 其他全域函式 ── */
+window.resetZoom  = () => ['hC1','hC2','hC3'].forEach(k=>{ if(S.charts[k]) S.charts[k].resetZoom(); });
+window.jumpToday  = () => {
+  const today=todayStr(), sel=document.getElementById('dateSelect');
+  if ([...sel.options].some(o=>o.value===today)) {
+    sel.value=today; S.gran='day'; applyFilter();
+  } else { alert('今日尚無歷史資料'); }
+};
+</script>
+</body>
+</html>
