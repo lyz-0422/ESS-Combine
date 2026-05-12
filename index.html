@@ -147,7 +147,6 @@ body::before {
 .kpi-unit  { font-size: 13px; color: var(--muted); margin-left: 3px; font-family: 'Noto Sans TC',sans-serif; font-weight: 400; }
 .kpi-sub   { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
-/* 異常類型標籤 */
 .badge-type {
   position: absolute; top: 8px; right: 8px;
   font-size: 11px; font-weight: 600; border-radius: 6px; padding: 2px 8px;
@@ -319,12 +318,9 @@ button.btn-fill:hover { background: #455a64; }
        TAB 1：即時監測
   ════════════════════════════════ -->
   <div id="tab-realtime">
-
-    <!-- 即時 KPI 卡 -->
     <div class="panel fade-up delay-1">
       <div class="panel-title">⚡ 即時設備數值 <span class="pill">每分鐘自動更新</span></div>
       <div class="kpi-grid" id="rtGrid">
-        <!-- 調節後負載 -->
         <div class="kpi-card c-green">
           <div class="kpi-label"><span class="kpi-dot" style="background:var(--green)"></span>原始負載</div>
           <div class="kpi-value" id="rt_before">--<span class="kpi-unit">kW</span></div>
@@ -376,7 +372,6 @@ button.btn-fill:hover { background: #455a64; }
       </div>
     </div>
 
-    <!-- 即時折線圖（最近60筆）-->
     <div class="panel chart-wrap fade-up delay-2">
       <div class="chart-header">
         <div>
@@ -392,15 +387,12 @@ button.btn-fill:hover { background: #455a64; }
       </div>
       <canvas id="rtChart" height="90"></canvas>
     </div>
-
   </div><!-- /tab-realtime -->
 
   <!-- ════════════════════════════════
        TAB 2：歷史分析
   ════════════════════════════════ -->
   <div id="tab-history" style="display:none">
-
-    <!-- 導覽列 -->
     <div class="nav-bar fade-up">
       <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;color:#5a6c7d">📊 粒度</div>
       <div class="granularity-btns">
@@ -425,7 +417,6 @@ button.btn-fill:hover { background: #455a64; }
       <button class="btn-outline" onclick="jumpToday()">跳至今日</button>
     </div>
 
-    <!-- 統計卡 -->
     <div class="stats-row fade-up delay-1">
       <div class="stat-card"><div class="stat-label">平均原始負載</div><div id="sAvgOrig" class="stat-value">--</div></div>
       <div class="stat-card"><div class="stat-label">尖峰原始負載</div><div id="sMaxOrig" class="stat-value">--</div></div>
@@ -433,7 +424,6 @@ button.btn-fill:hover { background: #455a64; }
       <div class="stat-card"><div class="stat-label">平均 ESS 功率</div><div id="sAvgESS"  class="stat-value">--</div></div>
     </div>
 
-    <!-- 逐筆資料卡（日模式） -->
     <div class="panel fade-up delay-1" id="detailPanel">
       <div class="panel-title">📌 當前資料點 <span class="pill" id="detailTime">--</span></div>
       <div class="kpi-grid" id="detailGrid">
@@ -480,7 +470,6 @@ button.btn-fill:hover { background: #455a64; }
       </div>
     </div>
 
-    <!-- 圖表1：用電曲線 -->
     <div class="panel chart-wrap fade-up delay-2">
       <div class="chart-header">
         <div>
@@ -497,7 +486,6 @@ button.btn-fill:hover { background: #455a64; }
       <canvas id="hChart1" height="90"></canvas>
     </div>
 
-    <!-- 圖表2：ESS + SOC -->
     <div class="panel chart-wrap fade-up delay-2">
       <div class="chart-header">
         <div>
@@ -513,7 +501,6 @@ button.btn-fill:hover { background: #455a64; }
       <canvas id="hChart2" height="90"></canvas>
     </div>
 
-    <!-- 圖表3：PV + SOH -->
     <div class="panel chart-wrap fade-up delay-3">
       <div class="chart-header">
         <div>
@@ -529,25 +516,17 @@ button.btn-fill:hover { background: #455a64; }
       <div id="hC3NoData" class="no-data" style="display:none">📭 無資料</div>
       <canvas id="hChart3" height="90"></canvas>
     </div>
-
   </div><!-- /tab-history -->
 
   <!-- ════════════════════════════════
        TAB 3：異常診斷
   ════════════════════════════════ -->
   <div id="tab-diag" style="display:none">
-
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
-
-      <!-- 機率條 -->
       <div class="panel fade-up">
         <div class="panel-title">🔬 異常類型診斷機率 <span class="pill">來自最新即時推論</span></div>
-        <div class="prob-section" id="probBars">
-          <!-- 動態生成 -->
-        </div>
+        <div class="prob-section" id="probBars"></div>
       </div>
-
-      <!-- 推論詳細資訊 -->
       <div class="panel fade-up delay-1">
         <div class="panel-title">📋 推論結果詳情</div>
         <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
@@ -578,10 +557,8 @@ button.btn-fill:hover { background: #455a64; }
           🔌 逆變器故障：inverter_eff &lt;0.85
         </div>
       </div>
-
     </div>
 
-    <!-- 歷史異常事件清單 -->
     <div class="panel fade-up delay-2" style="margin-top:0">
       <div class="panel-title">📜 歷史異常事件紀錄 <span class="pill" id="eventCount">0 筆</span></div>
       <div id="eventList" style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
@@ -590,7 +567,6 @@ button.btn-fill:hover { background: #455a64; }
     </div>
   </div><!-- /tab-diag -->
 
-  <!-- 趨勢浮動卡（歷史頁才顯示） -->
   <div id="trendFloat" style="display:none">
     <div class="trend-title">當前調節後負載趨勢</div>
     <div class="trend-val" id="trendVal">--</div>
@@ -599,9 +575,6 @@ button.btn-fill:hover { background: #455a64; }
 
 </div><!-- /page-wrap -->
 
-<!-- ══════════════════════════════════════════
-     JavaScript
-══════════════════════════════════════════ -->
 <script type="module">
 import { initializeApp }      from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
 import { getDatabase, ref, onValue, set }
@@ -609,7 +582,6 @@ import { getDatabase, ref, onValue, set }
 import { initializeAppCheck, ReCaptchaV3Provider }
                               from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app-check.js";
 
-/* ── Firebase 設定 ───────────────────────── */
 const firebaseConfig = {
   apiKey: "AIzaSyAnt-ZwVRwF3bx6iWKQivRqODubum8N5Og",
   authDomain: "esssimulation-ae1ab.firebaseapp.com",
@@ -628,7 +600,6 @@ initializeAppCheck(app, {
   isTokenAutoRefreshEnabled: true
 });
 
-/* ── 全域狀態 ────────────────────────────── */
 const ANOMALY_TYPES = {
   normal:             { label:'正常',       color: null },
   cell_inconsistency: { label:'電芯不一致', color:'#a29bfe' },
@@ -640,15 +611,8 @@ const ANOMALY_TYPES = {
 };
 
 const S = {
-  tab:      'realtime',
-  gran:     'day',
-  simData:  [],      // /ems_data 歷史模擬資料
-  rtBuf:    [],      // 即時趨勢緩衝（最近60筆）
-  filtered: [],      // 篩選後歷史資料
-  agg:      [],      // 聚合資料（週/月）
-  idx:      0,
-  charts:   {},
-  events:   [],      // 異常事件紀錄
+  tab:'realtime', gran:'day', simData:[], rtBuf:[],
+  filtered:[], agg:[], idx:0, charts:{}, events:[],
 };
 
 Chart.defaults.color       = '#5a6c7d';
@@ -658,23 +622,22 @@ Chart.defaults.font.size   = 14;
 
 const ZOOM = { zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'x'}, pan:{enabled:true,mode:'x'} };
 
-/* ── 工具函式 ────────────────────────────── */
 function dbg(msg, type='info') {
-  const el   = document.getElementById('debugLog');
-  const col  = type==='ok'?'#27ae60':type==='err'?'#e74c3c':'#5a6c7d';
-  const ts   = new Date().toLocaleTimeString('zh-TW');
+  const el  = document.getElementById('debugLog');
+  const col = type==='ok'?'#27ae60':type==='err'?'#e74c3c':'#5a6c7d';
+  const ts  = new Date().toLocaleTimeString('zh-TW');
   el.innerHTML += `<div class="debug-item" style="color:${col}">[${ts}] ${msg}</div>`;
   el.scrollTop  = el.scrollHeight;
 }
 function avg(arr, fn) { return arr.length ? arr.reduce((s,d)=>s+fn(d),0)/arr.length : 0; }
 function todayStr()   { return new Date().toLocaleDateString('sv-SE'); }
-function weekId(d)    {
+function weekId(d) {
   const s=new Date(d.getFullYear(),0,1);
   const w=Math.ceil(((d-s)/86400000+s.getDay()+1)/7);
   return `${d.getFullYear()}-W${String(w).padStart(2,'0')}`;
 }
 function destroyChart(k) { if(S.charts[k]){ S.charts[k].destroy(); delete S.charts[k]; } }
-function setKV(id, val)  {
+function setKV(id, val) {
   const el = document.getElementById(id);
   if (!el) return;
   const unit = el.querySelector('.kpi-unit, .rt-unit');
@@ -682,7 +645,6 @@ function setKV(id, val)  {
   if (unit) el.appendChild(unit);
 }
 
-/* ── Unity 控制器 ────────────────────────── */
 function unityDate(date) {
   set(ref(db,'viewerDate'), date)
     .then(()=>dbg(`📡 Unity ← viewerDate: ${date}`,'ok'))
@@ -694,9 +656,6 @@ function unityTime(time) {
     .catch(e=>dbg(`❌ viewerTime: ${e.message}`,'err'));
 }
 
-/* ══════════════════════════════════════════
-   TAB 切換
-══════════════════════════════════════════ */
 window.switchTab = (name, btn) => {
   S.tab = name;
   ['realtime','history','diag'].forEach(t => {
@@ -708,33 +667,33 @@ window.switchTab = (name, btn) => {
 };
 
 /* ══════════════════════════════════════════
-   ① Firebase /ems_realtime → 即時 Tab + 診斷 Tab
+   ① Firebase /ess_realtime → 即時 Tab
+   ✅ 修正：路徑從 /ems_realtime 改為 /ess_realtime
 ══════════════════════════════════════════ */
-onValue(ref(db, '/ems_realtime'), snap => {
+onValue(ref(db, '/ess_realtime'), snap => {
   const d = snap.val();
   if (!d) { document.getElementById('liveStatus').textContent='無即時資料'; return; }
 
-  /* 欄位對應：同時相容 Python 新版（英文 key）和舊版（中文 key）*/
-  const before   = d.before_load_kw     ?? d['原始負載_kW']   ?? d.before_load   ?? null;
-  const after    = d.after_load_kw      ?? d['調節後負載_kW'] ?? d.after_load    ?? null;
-  const contract = d.contract_capacity_kw?? d['契約容量_kW']  ?? d.contract_capacity ?? null;
-  const ess      = d.ess_power_kw       ?? d['ESS功率_kW']    ?? d.ess_power     ?? null;
-  const soc      = d.soc_pct            ?? d['SOC_%']         ?? d.soc           ?? null;
-  const soh      = d.soh_pct            ?? d.soh              ?? null;
-  const pvAct    = d.pv_actual_kw       ?? d.pv_actual        ?? null;
-  const pvThe    = d.pv_theory_kw       ?? d.pv_theory        ?? null;
-  const invEff   = d.inverter_eff       ?? null;
-  const pvAc     = d.pv_ac_kw          ?? d.pv_ac            ?? null;
-  const over     = d.over_contract_kw   ?? d.over_contract    ?? null;
-  const score    = d.anomaly_score      ?? null;
-  const ifScore  = d.if_score           ?? null;
-  const supProba = d.sup_proba          ?? null;
+  /* ✅ 相容新版英文 key（Python 後端輸出）及舊版中文 key */
+  const before   = d.before_load_kw      ?? d['原始負載_kW']   ?? d.before_load   ?? null;
+  const after    = d.after_load_kw       ?? d['調節後負載_kW'] ?? d.after_load    ?? null;
+  const contract = d.contract_capacity_kw?? d['契約容量_kW']   ?? d.contract_capacity ?? null;
+  const ess      = d.ess_power_kw        ?? d['ESS功率_kW']    ?? d.ess_power     ?? null;
+  const soc      = d.soc_pct             ?? d['SOC_%']         ?? d.soc           ?? null;
+  const soh      = d.soh_pct             ?? d.soh              ?? null;
+  const pvAct    = d.pv_actual_kw        ?? d.pv_actual        ?? null;
+  const pvThe    = d.pv_theory_kw        ?? d.pv_theory        ?? null;
+  const invEff   = d.inverter_eff        ?? null;
+  const pvAc     = d.pv_ac_kw           ?? d.pv_ac            ?? null;
+  const over     = d.over_contract_kw    ?? d.over_contract    ?? null;
+  const score    = d.anomaly_score       ?? null;
+  const ifScore  = d.if_score            ?? null;
+  const supProba = d.sup_proba           ?? null;
   const isAnom   = d.is_anomaly === 1 || d.is_anomaly === true;
-  const typeName = d.anomaly_type       ?? 'normal';
-  const mcProb   = d.mc_probabilities   ?? {};
-  const ts       = d.timestamp          ?? '';
+  const typeName = d.anomaly_type        ?? 'normal';
+  const mcProb   = d.mc_probabilities    ?? {};
+  const ts       = d.timestamp           ?? '';
 
-  /* KPI 卡更新 */
   setKV('rt_before',   before   != null ? Number(before).toFixed(2)   : '--');
   setKV('rt_after',    after    != null ? Number(after).toFixed(2)    : '--');
   setKV('rt_contract', contract != null ? Number(contract).toFixed(0) : '--');
@@ -745,7 +704,7 @@ onValue(ref(db, '/ems_realtime'), snap => {
   setKV('rt_over',     over     != null ? Number(over).toFixed(2)     : '--');
 
   if (soh != null) document.getElementById('rt_soh').textContent = `SOH ${Number(soh).toFixed(1)}%`;
-  if (ts)          document.getElementById('rt_time').textContent= `資料時間：${ts}`;
+  if (ts)          document.getElementById('rt_time').textContent = `資料時間：${ts}`;
 
   const pvEff = (pvThe > 0 && pvAct != null) ? (pvAct/pvThe*100) : null;
   if (pvEff != null) document.getElementById('rt_pvEff').textContent = `效率 ${pvEff.toFixed(1)}%`;
@@ -757,16 +716,13 @@ onValue(ref(db, '/ems_realtime'), snap => {
   const overKw = after != null && contract != null ? Math.max(0, after-contract) : 0;
   document.getElementById('rt_overKw').textContent = `超約 ${overKw.toFixed(2)} kW`;
   document.getElementById('rtContractCard').classList.toggle('warn', overKw > 0);
-
   document.getElementById('rt_scoreType').textContent = `類型：${ANOMALY_TYPES[typeName]?.label ?? typeName}`;
 
-  /* 異常狀態卡 */
   const aCard = document.getElementById('rt_anomalyCard');
   setKV('rt_anomalyVal', isAnom ? '⚠ 異常' : '✅ 正常');
   aCard.style.borderLeftColor = isAnom ? 'var(--red)' : 'var(--green)';
-  aCard.style.background     = isAnom ? '#fff5f5' : '';
+  aCard.style.background      = isAnom ? '#fff5f5' : '';
 
-  /* 警報橫幅 */
   const banner = document.getElementById('alertBanner');
   if (isAnom) {
     banner.classList.add('show');
@@ -777,13 +733,11 @@ onValue(ref(db, '/ems_realtime'), snap => {
     banner.classList.remove('show');
   }
 
-  /* 診斷 Tab */
-  setKV('diag_score', score   != null ? score.toFixed(3)    : '--');
-  setKV('diag_if',    ifScore != null ? ifScore.toFixed(3)  : '--');
-  setKV('diag_sup',   supProba!= null ? supProba.toFixed(3) : '--');
+  setKV('diag_score', score    != null ? score.toFixed(3)    : '--');
+  setKV('diag_if',    ifScore  != null ? ifScore.toFixed(3)  : '--');
+  setKV('diag_sup',   supProba != null ? supProba.toFixed(3) : '--');
   document.getElementById('diag_type').textContent = ANOMALY_TYPES[typeName]?.label ?? typeName;
 
-  /* 機率條 */
   const pbEl = document.getElementById('probBars');
   pbEl.innerHTML = '';
   Object.entries(ANOMALY_TYPES).forEach(([key, meta]) => {
@@ -797,14 +751,12 @@ onValue(ref(db, '/ems_realtime'), snap => {
       </div>`;
   });
 
-  /* 事件紀錄（只記異常） */
   if (isAnom) {
     S.events.unshift({ ts, typeName, score: score?.toFixed(3) ?? '—', label: ANOMALY_TYPES[typeName]?.label ?? typeName });
     if (S.events.length > 50) S.events.pop();
     renderEventList();
   }
 
-  /* 即時折線圖 */
   const timeLabel = ts.slice(11,16) || '--:--';
   S.rtBuf.push({ t: timeLabel, before, after, ess, score });
   if (S.rtBuf.length > 60) S.rtBuf.shift();
@@ -846,25 +798,24 @@ function renderEventList() {
   el.innerHTML = S.events.map(ev => {
     const col = ANOMALY_TYPES[ev.typeName]?.color ?? '#e74c3c';
     return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;
-      border-radius:10px;background:#f8fafc;border:1px solid var(--border);font-size:13px;
-      animation:fadeUp .3s ease">
+      border-radius:10px;background:#f8fafc;border:1px solid var(--border);font-size:13px">
       <span style="padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;
         background:${col}22;color:${col};white-space:nowrap;flex-shrink:0">ANOMALY</span>
-      <span style="flex:1;color:var(--text)">
-        ${ev.label}｜分數 ${ev.score}
-      </span>
+      <span style="flex:1;color:var(--text)">${ev.label}｜分數 ${ev.score}</span>
       <span style="color:var(--muted);font-size:11px;white-space:nowrap">${ev.ts.slice(11,16)}</span>
     </div>`;
   }).join('');
 }
 
 /* ══════════════════════════════════════════
-   ② Firebase /ems_data → 歷史 Tab
+   ② Firebase /ess_history → 歷史 Tab
+   ✅ 修正：路徑從 /ems_data 改為 /ess_history
+   ✅ 修正：欄位名稱同時相容 _kw 後綴版本
 ══════════════════════════════════════════ */
-onValue(ref(db, '/ems_data'), snap => {
-  dbg('📡 /ems_data 數據更新');
+onValue(ref(db, '/ess_history'), snap => {
+  dbg('📡 /ess_history 數據更新');
   const raw = snap.val();
-  if (!raw) { dbg('❌ /ems_data 無資料，請先執行 Colab 上傳','err'); return; }
+  if (!raw) { dbg('❌ /ess_history 無資料','err'); return; }
 
   S.simData = [];
   let cnt = 0;
@@ -876,20 +827,21 @@ onValue(ref(db, '/ems_data'), snap => {
       if (!r || !r.timestamp) return;
       cnt++;
       S.simData.push({
-        ts:                  r.timestamp,
-        before_load:         +r.before_load         || 0,
-        after_load:          +r.after_load          || 0,
-        over_contract:       +r.over_contract       || 0,
-        contract_capacity:   +r.contract_capacity   || 500,
-        ess_power:           +r.ess_power           || 0,
-        soc:                 +r.soc                 || 0,
-        soh:                 +r.soh                 || 100,
-        cell_v_diff:         +r.cell_v_diff         || 0,
-        inverter_eff:        +r.inverter_eff        || 0,
-        pv_theory:           +r.pv_theory           || 0,
-        pv_actual:           +r.pv_actual           || 0,
-        is_anomaly:          +r.is_anomaly          || 0,
-        anomaly_type:        r.anomaly_type         || 'normal',
+        ts:               r.timestamp,
+        /* ✅ 同時相容 _kw 後綴（新版）與無後綴（舊版）欄位名 */
+        before_load:      +(r.before_load_kw      ?? r.before_load)      || 0,
+        after_load:       +(r.after_load_kw       ?? r.after_load)       || 0,
+        over_contract:    +(r.over_contract_kw     ?? r.over_contract)    || 0,
+        contract_capacity:+(r.contract_capacity_kw ?? r.contract_capacity)|| 500,
+        ess_power:        +(r.ess_power_kw         ?? r.ess_power)        || 0,
+        soc:              +(r.soc_pct              ?? r.soc)              || 0,
+        soh:              +(r.soh_pct              ?? r.soh)              || 100,
+        cell_v_diff:      +(r.cell_v_diff)                               || 0,
+        inverter_eff:     +(r.inverter_eff)                              || 0,
+        pv_theory:        +(r.pv_theory_kw         ?? r.pv_theory)        || 0,
+        pv_actual:        +(r.pv_actual_kw         ?? r.pv_actual)        || 0,
+        is_anomaly:       +(r.is_anomaly)                                || 0,
+        anomaly_type:     r.anomaly_type || 'normal',
       });
     });
   });
@@ -900,7 +852,6 @@ onValue(ref(db, '/ems_data'), snap => {
   initHistoryView();
 });
 
-/* ── 歷史視圖初始化 ── */
 function initHistoryView() {
   const sel = document.getElementById('dateSelect');
   const dates = [...new Set(S.simData.map(d => {
@@ -916,10 +867,7 @@ function initHistoryView() {
   const today = todayStr();
   sel.value = dates.includes(prev) ? prev : dates.includes(today) ? today : dates.at(-1) ?? '';
 
-  sel.onchange = () => {
-    if (S.gran==='day') unityDate(sel.value);
-    applyFilter();
-  };
+  sel.onchange = () => { if (S.gran==='day') unityDate(sel.value); applyFilter(); };
   document.getElementById('dateLabel').textContent = S.gran==='day'?'日期':S.gran==='week'?'週次':'月份';
   applyFilter();
 }
@@ -984,17 +932,16 @@ function updateHistoryUI() {
   document.getElementById('detailPanel').style.display = isDay?''   :'none';
   document.getElementById('hChart1Title').textContent  =
     isDay?'用電曲線（調度前後 + 契約容量）':'每日平均 / 尖峰負載';
-
   if (isDay && S.filtered.length) { updateDetailCard(); updateTrend(); }
 }
 
 function updateDetailCard() {
   const d=S.filtered[S.idx];
   const pct=((S.idx+1)/S.filtered.length*100).toFixed(1);
-  document.getElementById('progressBar').style.width    = pct+'%';
-  document.getElementById('progressTxt').textContent    = `${S.idx+1} / ${S.filtered.length}`;
-  document.getElementById('detailTime').textContent     = d.ts.replace('T',' ').slice(0,16);
-  document.getElementById('hChart1Sub').textContent     = d.ts.slice(0,10)+`　共 ${S.filtered.length} 筆`;
+  document.getElementById('progressBar').style.width = pct+'%';
+  document.getElementById('progressTxt').textContent = `${S.idx+1} / ${S.filtered.length}`;
+  document.getElementById('detailTime').textContent  = d.ts.replace('T',' ').slice(0,16);
+  document.getElementById('hChart1Sub').textContent  = d.ts.slice(0,10)+`　共 ${S.filtered.length} 筆`;
 
   setKV('d_before',   d.before_load.toFixed(2));
   setKV('d_after',    d.after_load.toFixed(2));
@@ -1030,7 +977,6 @@ function updateTrend() {
   document.getElementById('trendChg').innerHTML=`<span class="${cls}">${sym} ${Math.abs(pct)}%</span>`;
 }
 
-/* ── 上/下一筆 ── */
 document.getElementById('btnPrev').onclick = () => {
   if (S.idx > 0) { S.idx--; unityTime(S.filtered[S.idx].ts.slice(11,16)); updateDetailCard(); updateTrend(); }
 };
@@ -1038,7 +984,6 @@ document.getElementById('btnNext').onclick = () => {
   if (S.idx < S.filtered.length-1) { S.idx++; unityTime(S.filtered[S.idx].ts.slice(11,16)); updateDetailCard(); updateTrend(); }
 };
 
-/* ── 歷史圖表渲染 ── */
 const ANOMALY_COLORS = {
   normal:null, cell_inconsistency:'#a29bfe', internal_short:'#e74c3c',
   soh_degradation:'#fbc02d', partial_shading:'#3498db',
@@ -1067,23 +1012,22 @@ function renderDayCharts() {
   const OPTS  = {
     responsive:true, maintainAspectRatio:true, animation:{duration:0},
     interaction:{mode:'index',intersect:false},
-    plugins:{ zoom:ZOOM, legend:{display:false},
-      tooltip:{mode:'index',intersect:false} },
+    plugins:{ zoom:ZOOM, legend:{display:false}, tooltip:{mode:'index',intersect:false} },
     onClick:(e,els)=>{ if(els.length){ S.idx=els[0].index; unityTime(rows[S.idx].ts.slice(11,16)); updateDetailCard(); updateTrend(); } }
   };
 
-  S.charts.hC1 = new Chart(document.getElementById('hChart1'),{type:'line',data:{labels,datasets:[
+  S.charts.hC1=new Chart(document.getElementById('hChart1'),{type:'line',data:{labels,datasets:[
     {label:'原始負載',   data:rows.map(d=>d.before_load),       borderColor:'#2ecc71',pointRadius:0,borderWidth:1.8,fill:false},
     {label:'調節後負載', data:rows.map(d=>d.after_load),        borderColor:'#fbc02d',borderWidth:2.5,fill:false,pointRadius:ptRad,pointBackgroundColor:ptClr,pointBorderColor:ptClr},
     {label:'契約容量',   data:rows.map(d=>d.contract_capacity), borderColor:'#ff4757',borderDash:[6,4],pointRadius:0,borderWidth:1.5,fill:false},
   ]},options:{...OPTS,scales:{x:{ticks:{maxTicksLimit:24}},y:{title:{display:true,text:'功率 (kW)'}}}}});
 
-  S.charts.hC2 = new Chart(document.getElementById('hChart2'),{type:'line',data:{labels,datasets:[
+  S.charts.hC2=new Chart(document.getElementById('hChart2'),{type:'line',data:{labels,datasets:[
     {label:'ESS功率',yAxisID:'y', data:rows.map(d=>d.ess_power),borderColor:'#00bcd4',pointRadius:0,borderWidth:1.8,fill:false},
     {label:'SOC',   yAxisID:'y1',data:rows.map(d=>d.soc),      borderColor:'#ffd93d',pointRadius:0,borderWidth:1.8,fill:false},
   ]},options:{...OPTS,scales:{x:{ticks:{maxTicksLimit:24}},y:{title:{display:true,text:'ESS 功率 (kW)'}},y1:{position:'right',min:0,max:100,title:{display:true,text:'SOC (%)'}}}}});
 
-  S.charts.hC3 = new Chart(document.getElementById('hChart3'),{type:'line',data:{labels,datasets:[
+  S.charts.hC3=new Chart(document.getElementById('hChart3'),{type:'line',data:{labels,datasets:[
     {label:'PV理論',yAxisID:'y', data:rows.map(d=>d.pv_theory),borderColor:'#f0883e',borderDash:[5,3],pointRadius:0,borderWidth:1.5,fill:false},
     {label:'PV實際',yAxisID:'y', data:rows.map(d=>d.pv_actual),borderColor:'#27ae60',pointRadius:0,borderWidth:1.8,fill:false},
     {label:'SOH',   yAxisID:'y1',data:rows.map(d=>d.soh),      borderColor:'#a29bfe',pointRadius:0,borderWidth:1.8,fill:false},
@@ -1115,7 +1059,6 @@ function renderAggCharts() {
   ]},options:{...OPTS,scales:{x:{},y:{title:{display:true,text:'PV kW'}},y1:{position:'right',min:0,max:100,title:{display:true,text:'SOH %'}}}}});
 }
 
-/* ── 粒度切換 ── */
 window.setGran = (gran, btn) => {
   S.gran = gran;
   document.querySelectorAll('.btn-g').forEach(b=>b.classList.remove('active'));
@@ -1123,9 +1066,8 @@ window.setGran = (gran, btn) => {
   initHistoryView();
 };
 
-/* ── 其他全域函式 ── */
-window.resetZoom  = () => ['hC1','hC2','hC3'].forEach(k=>{ if(S.charts[k]) S.charts[k].resetZoom(); });
-window.jumpToday  = () => {
+window.resetZoom = () => ['hC1','hC2','hC3'].forEach(k=>{ if(S.charts[k]) S.charts[k].resetZoom(); });
+window.jumpToday = () => {
   const today=todayStr(), sel=document.getElementById('dateSelect');
   if ([...sel.options].some(o=>o.value===today)) {
     sel.value=today; S.gran='day'; applyFilter();
